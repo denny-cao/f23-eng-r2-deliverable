@@ -52,6 +52,7 @@ Goals:
 - User will be notified of success or failure
 */
 }
+
 const kingdoms = z.enum(["Animalia", "Plantae", "Fungi", "Protista", "Archaea", "Bacteria"]);
 
 const speciesSchema = z.object({
@@ -87,13 +88,26 @@ const defaultValues: Partial<FormData> = {
 export default function EditSpeciesDialog({ userId }: { userID: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [selectedSpecies, setSelectedSpecies] = useState(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(speciesSchema),
     defaultValues,
     mode: "onChange",
   });
+
+  const {
+    data,
+    error,
+  } = async (input: userId) => {
+    const supabase = createServerSupabaseClient();
+    const { data: species, error } = await supabase.from("species").select("*").eq("author", userId);
+
+    if (error) {
+      throw error;
+    }
+
+    return species;
+  };
 
   const onSubmit = async (input: FormData) => {
     // The `input` prop contains data that has already been processed by zod. We can now use it in a supabase query
@@ -145,12 +159,11 @@ export default function EditSpeciesDialog({ userId }: { userID: string }) {
             <div className="grid w-full items-center gap-4">
               <FormField
                 control={form.control}
-                name="kingdom"
+                name="scientific_name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Scientific Name</FormLabel>
-                    {/* Using shadcn/ui form with enum: https://github.com/shadcn-ui/ui/issues/772 */}
-                    <Select onValueChange={(value) => field.onChange(kingdoms.parse(value))} defaultValue={field.value}>
+                    <Select onValueChange={(value) => field.onChange(value)} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a species" />
@@ -158,9 +171,9 @@ export default function EditSpeciesDialog({ userId }: { userID: string }) {
                       </FormControl>
                       <SelectContent>
                         <SelectGroup>
-                          {kingdoms.options.map((kingdom, index) => (
-                            <SelectItem key={index} value={kingdom}>
-                              {kingdom}
+                          {data.map((species, index) => (
+                            <SelectItem key={index} value={species.scientificName}>
+                              {species.scientificName}
                             </SelectItem>
                           ))}
                         </SelectGroup>
